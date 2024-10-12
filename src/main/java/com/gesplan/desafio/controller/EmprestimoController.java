@@ -1,6 +1,7 @@
 package com.gesplan.desafio.controller;
 
-import com.gesplan.desafio.entities.Emprestimo;
+import com.gesplan.desafio.entities.EmprestimoRequest;
+import com.gesplan.desafio.entities.EmprestimoResponse;
 import com.gesplan.desafio.service.EmprestimoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +16,9 @@ public class EmprestimoController {
     @Autowired
     private EmprestimoService emprestimoService;
 
-    @GetMapping("/calcular")
-    public ResponseEntity<List<Emprestimo>> calcular() {
-        List<Emprestimo> listagem= emprestimoService.calcularEmprestimo();
+    @PostMapping("/calcular")
+    public ResponseEntity<List<EmprestimoResponse>> calcular(@RequestBody EmprestimoRequest emprestimo) {
+        List<EmprestimoResponse> listagem= emprestimoService.calcularEmprestimo(emprestimo);
         return ResponseEntity.ok().body(listagem);
     }
 
