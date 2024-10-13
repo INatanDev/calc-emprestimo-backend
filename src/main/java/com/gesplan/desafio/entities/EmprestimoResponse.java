@@ -11,14 +11,15 @@ import java.time.LocalDate;
 public class EmprestimoResponse {
 
     private LocalDate dataCompetencia;
-    /*private Double saldoDevedor;
+    private Double saldoDevedor;
     private String consolidado;
     private Double total;
     private Double amortizacao;
-    private Double saldo;*/
-    //private Double provisao;
-    /*private Double acumulado;
-    private Double pago;*/
+    private Double saldo;
+    private Double valorProvisao;
+    private Double valorAcumulado;
+    private Double valorPago;
     private Integer qtdParcelas;
+    private Integer baseDias;
 
 }
