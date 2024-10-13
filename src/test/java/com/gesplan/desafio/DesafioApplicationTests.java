@@ -16,6 +16,7 @@ class DesafioApplicationTests {
 		EmprestimoService emprestimoService = new EmprestimoService();
 		LocalDate dtCompetencia = LocalDate.of(2024, 01, 31);
 		LocalDate dtInicial = LocalDate.of(2024, 01, 01);
+		LocalDate dtFinal = LocalDate.of(2024, 01, 31);
 		LocalDate dtPagto = LocalDate.of(2024, 02, 15);
 		LocalDate dtAnterior = LocalDate.of(2024, 01, 01);
 		LocalDate dtProxPagto = LocalDate.of(2024, 03, 15);
@@ -32,7 +33,7 @@ class DesafioApplicationTests {
 		System.out.println(verificaData);
 		System.out.println(dtCompetencia.isBefore(dtProxPagto));*/
 
-		LocalDate verificaData = emprestimoService.calcularCompetencia(dtCompetencia, dtPagto, dtInicial, 15);
+		LocalDate verificaData = emprestimoService.calcularCompetencia(dtCompetencia, dtPagto, dtInicial, dtFinal,15, 120);
 		System.out.println(verificaData);
 
 	}

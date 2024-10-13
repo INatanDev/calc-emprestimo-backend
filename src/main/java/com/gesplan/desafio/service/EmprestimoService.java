@@ -13,11 +13,10 @@ import de.jollyday.HolidayManager;
 
 @Service
 public class EmprestimoService {
-    public static int j = 0;
+    public static int parcelaAtual = 0;
     private final HolidayManager manager = HolidayManager.getInstance(HolidayCalendar.BRAZIL);
 
     public List<EmprestimoResponse> calcularEmprestimo(EmprestimoRequest dadosCalculo) {
-        int i = 0;
         List<EmprestimoResponse> emprestimos = new ArrayList<>();
 
         //inicializacao variaveis
@@ -36,55 +35,52 @@ public class EmprestimoService {
         LocalDate dataPagamento = dadosCalculo.getDataPrimeiroPagamento();
         Integer diaPagto = dadosCalculo.getDataPrimeiroPagamento().getDayOfMonth();
 
-        while(i <= 20) {
+        //cria primeiro registro
+        emprestimos.add(new EmprestimoResponse(dataCompetencia,
+                saldoDevedor,
+                consolidado,
+                total,
+                valorAmortizacao,
+                saldo,
+                valorProvisao,
+                valorAcumulado,
+                valorPago,
+                qtdParcelas,
+                baseDias
+        ));
 
-            if(i == 0) { //primeira linha só retornar os dados
-                emprestimos.add(new EmprestimoResponse(dataCompetencia,
-                                                       saldoDevedor,
-                                                       consolidado,
-                                                       total,
-                                                       valorAmortizacao,
-                                                       saldo,
-                                                       valorProvisao,
-                                                       valorAcumulado,
-                                                       valorPago,
-                                                       qtdParcelas,
-                                                       baseDias
-                                                       ));
-            } else {
-                LocalDate dataAnterior = dataCompetencia;
-                Double vlrAcumuladoAnterior = valorAcumulado;
+        while(parcelaAtual != qtdParcelas) {
 
-                dataCompetencia = calcularCompetencia(dataCompetencia, dataPagamento, dadosCalculo.getDataInicial(), diaPagto);
-                consolidado = isConsolidado(dataCompetencia, dataPagamento, qtdParcelas);
-                if(consolidado != null) {
-                    dataPagamento = dataCompetencia;
-                }
-                valorAmortizacao = calcularAmortizacao(consolidado, dadosCalculo.getValorEmprestimo(), qtdParcelas);
-                valorProvisao = calcularProvisao(dataCompetencia, dataAnterior, saldo, valorAcumulado, dadosCalculo.getTaxaJuros());
-                saldo = saldo - valorAmortizacao;
-                valorPago = calcularValorPagamento(consolidado, vlrAcumuladoAnterior, valorProvisao);
-                valorAcumulado = calcularAcumulado(consolidado, valorProvisao, vlrAcumuladoAnterior, valorPago);
+            LocalDate dataAnterior = dataCompetencia;
+            Double vlrAcumuladoAnterior = valorAcumulado;
 
-                emprestimos.add(new EmprestimoResponse(dataCompetencia,
-                        Double.parseDouble((String.format("%.2f", saldo + valorAcumulado)).replace(",", ".")), //saldo devedor
-                        consolidado,
-                        Double.parseDouble((String.format("%.2f", valorAmortizacao + valorPago)).replace(",", ".")), //total
-                        Double.parseDouble((String.format("%.2f", valorAmortizacao)).replace(",", ".")),
-                        Double.parseDouble((String.format("%.2f", saldo)).replace(",", ".")),
-                        Double.parseDouble((String.format("%.2f", valorProvisao)).replace(",", ".")),
-                        Double.parseDouble((String.format("%.2f", valorAcumulado)).replace(",", ".")),
-                        Double.parseDouble((String.format("%.2f", valorPago)).replace(",", ".")),
-                        qtdParcelas,
-                        baseDias));
+            dataCompetencia = calcularCompetencia(dataCompetencia, dataPagamento, dadosCalculo.getDataInicial(), dadosCalculo.getDataFinal(), diaPagto, qtdParcelas);
+            consolidado = isConsolidado(dataCompetencia, dataPagamento, qtdParcelas);
+            if(consolidado != null) {
+                dataPagamento = dataCompetencia;
             }
-            i++;
-        }
+            valorAmortizacao = calcularAmortizacao(consolidado, dadosCalculo.getValorEmprestimo(), qtdParcelas);
+            valorProvisao = calcularProvisao(dataCompetencia, dataAnterior, saldo, valorAcumulado, dadosCalculo.getTaxaJuros());
+            saldo = saldo - valorAmortizacao;
+            valorPago = calcularValorPagamento(consolidado, vlrAcumuladoAnterior, valorProvisao);
+            valorAcumulado = calcularAcumulado(consolidado, valorProvisao, vlrAcumuladoAnterior, valorPago);
 
+            emprestimos.add(new EmprestimoResponse(dataCompetencia,
+                    Double.parseDouble((String.format("%.2f", saldo + valorAcumulado)).replace(",", ".")), //saldo devedor
+                    consolidado,
+                    Double.parseDouble((String.format("%.2f", valorAmortizacao + valorPago)).replace(",", ".")), //total
+                    Double.parseDouble((String.format("%.2f", valorAmortizacao)).replace(",", ".")),
+                    Double.parseDouble((String.format("%.2f", saldo)).replace(",", ".")),
+                    Double.parseDouble((String.format("%.2f", valorProvisao)).replace(",", ".")),
+                    Double.parseDouble((String.format("%.2f", valorAcumulado)).replace(",", ".")),
+                    Double.parseDouble((String.format("%.2f", valorPago)).replace(",", ".")),
+                    qtdParcelas,
+                    baseDias));
+        }
         return emprestimos;
     }
 
-    public LocalDate calcularCompetencia(LocalDate dtCompetencia, LocalDate dtPagto, LocalDate dtInicial, Integer diaPagto) {
+    public LocalDate calcularCompetencia(LocalDate dtCompetencia, LocalDate dtPagto, LocalDate dtInicial, LocalDate dtFinal, Integer diaPagto, Integer qtdParcelas) {
 
         boolean mesmoMesInicial = dtCompetencia.getMonth() == dtInicial.getMonth();
         LocalDate ultimoDiaMes = dtCompetencia.withDayOfMonth(dtCompetencia.lengthOfMonth()); //verifica se o dtCompetencia ja nao é o ultimo dia do mes
@@ -94,6 +90,8 @@ public class EmprestimoService {
             return dtPagto;
         } else if(!dtCompetencia.equals(ultimoDiaMes)) {
             return ultimoDiaMes;
+        } else if(dtPagto.isAfter(dtFinal) && (parcelaAtual + 1) == qtdParcelas) { //garantir que não passe da dataFinal
+            return dtFinal;
         } else {
             return dtPagto;
         }
@@ -144,7 +142,7 @@ public class EmprestimoService {
     public LocalDate calcularDataPagamento(LocalDate dtPgto, Integer diaPagto) {
         LocalDate newDtPagto;
 
-        if(j == 0) {
+        if(parcelaAtual == 0) {
             return dtPgto;
         } else if(diaPagto == dtPgto.getDayOfMonth()) {
             newDtPagto = dtPgto.plusMonths(1);
@@ -162,16 +160,15 @@ public class EmprestimoService {
     public String isConsolidado (LocalDate dtCompetencia, LocalDate dtPagtoAnterior, Integer qtdParcelas){
         LocalDate ultimoDiaMes = dtCompetencia.withDayOfMonth(dtCompetencia.lengthOfMonth());
         if(dtCompetencia.getDayOfMonth() == dtPagtoAnterior.getDayOfMonth()) {
-            j++;
-            return j + "/" + qtdParcelas;
+            parcelaAtual++;
+            return parcelaAtual + "/" + qtdParcelas;
         } else if (dtCompetencia != ultimoDiaMes) {
-            j++;
-            return j + "/" + qtdParcelas;
+            parcelaAtual++;
+            return parcelaAtual + "/" + qtdParcelas;
         } else {
             return null;
         }
     }
-
 
     public boolean isDiaNaoUtil(LocalDate data) {
         boolean isFeriado = manager.isHoliday(data);
