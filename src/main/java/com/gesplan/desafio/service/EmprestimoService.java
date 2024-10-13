@@ -34,6 +34,7 @@ public class EmprestimoService {
         Integer baseDias = 360;
 
         LocalDate dataPagamento = dadosCalculo.getDataPrimeiroPagamento();
+        Integer diaPagto = dadosCalculo.getDataPrimeiroPagamento().getDayOfMonth();
 
         while(i <= 20) {
 
@@ -54,7 +55,7 @@ public class EmprestimoService {
                 LocalDate dataAnterior = dataCompetencia;
                 Double vlrAcumuladoAnterior = valorAcumulado;
 
-                dataCompetencia = calcularCompetencia(dataCompetencia, dataPagamento, dadosCalculo.getDataInicial());
+                dataCompetencia = calcularCompetencia(dataCompetencia, dataPagamento, dadosCalculo.getDataInicial(), diaPagto);
                 consolidado = isConsolidado(dataCompetencia, dataPagamento, qtdParcelas);
                 if(consolidado != null) {
                     dataPagamento = dataCompetencia;
@@ -83,14 +84,14 @@ public class EmprestimoService {
         return emprestimos;
     }
 
-    private LocalDate calcularCompetencia(LocalDate dtCompetencia, LocalDate dtPrimeiroPagto, LocalDate dtInicial) {
+    public LocalDate calcularCompetencia(LocalDate dtCompetencia, LocalDate dtPagto, LocalDate dtInicial, Integer diaPagto) {
 
         boolean mesmoMesInicial = dtCompetencia.getMonth() == dtInicial.getMonth();
         LocalDate ultimoDiaMes = dtCompetencia.withDayOfMonth(dtCompetencia.lengthOfMonth()); //verifica se o dtCompetencia ja nao é o ultimo dia do mes
-        LocalDate dtPagto = calcularDataPagamento(dtCompetencia, dtPrimeiroPagto);
+        dtPagto = calcularDataPagamento(dtPagto, diaPagto);
 
         if(mesmoMesInicial && dtCompetencia.equals(ultimoDiaMes)) {
-            return dtPrimeiroPagto;
+            return dtPagto;
         } else if(!dtCompetencia.equals(ultimoDiaMes)) {
             return ultimoDiaMes;
         } else {
@@ -140,8 +141,16 @@ public class EmprestimoService {
         return qtdParcelas;
     }
 
-    public LocalDate calcularDataPagamento(LocalDate dtCompetencia, LocalDate dtPrimeiroPagto) {
-        LocalDate newDtPagto = dtPrimeiroPagto.plusMonths(1);
+    public LocalDate calcularDataPagamento(LocalDate dtPgto, Integer diaPagto) {
+        LocalDate newDtPagto;
+
+        if(j == 0) {
+            return dtPgto;
+        } else if(diaPagto == dtPgto.getDayOfMonth()) {
+            newDtPagto = dtPgto.plusMonths(1);
+        } else {
+            newDtPagto = dtPgto.withDayOfMonth(diaPagto).plusMonths(1);
+        }
 
         while (isDiaNaoUtil(newDtPagto)) {
             newDtPagto = newDtPagto.plusDays(1);
