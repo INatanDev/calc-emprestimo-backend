@@ -3,6 +3,8 @@ package com.gesplan.desafio.service;
 import com.gesplan.desafio.entities.EmprestimoRequest;
 import com.gesplan.desafio.entities.EmprestimoResponse;
 import org.springframework.stereotype.Service;
+
+import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Period;
@@ -17,6 +19,7 @@ public class EmprestimoService {
     private final HolidayManager manager = HolidayManager.getInstance(HolidayCalendar.BRAZIL);
 
     public List<EmprestimoResponse> calcularEmprestimo(EmprestimoRequest dadosCalculo) {
+        parcelaAtual = 0;
         List<EmprestimoResponse> emprestimos = new ArrayList<>();
 
         //inicializacao variaveis
@@ -48,14 +51,14 @@ public class EmprestimoService {
                 qtdParcelas,
                 baseDias
         ));
-
-        while(parcelaAtual != qtdParcelas) {
+        int i = 0;
+        while(/*i <= 150 || */parcelaAtual != qtdParcelas) {
 
             LocalDate dataAnterior = dataCompetencia;
             Double vlrAcumuladoAnterior = valorAcumulado;
 
             dataCompetencia = calcularCompetencia(dataCompetencia, dataPagamento, dadosCalculo.getDataInicial(), dadosCalculo.getDataFinal(), diaPagto, qtdParcelas);
-            consolidado = isConsolidado(dataCompetencia, dataPagamento, qtdParcelas);
+            consolidado = isConsolidado(dataCompetencia, dataPagamento, qtdParcelas, dadosCalculo.getDataInicial());
             if(consolidado != null) {
                 dataPagamento = dataCompetencia;
             }
@@ -76,6 +79,7 @@ public class EmprestimoService {
                     Double.parseDouble((String.format("%.2f", valorPago)).replace(",", ".")),
                     qtdParcelas,
                     baseDias));
+            i++;
         }
         return emprestimos;
     }
@@ -147,22 +151,43 @@ public class EmprestimoService {
         } else if(diaPagto == dtPgto.getDayOfMonth()) {
             newDtPagto = dtPgto.plusMonths(1);
         } else {
-            newDtPagto = dtPgto.withDayOfMonth(diaPagto).plusMonths(1);
+            newDtPagto = dtPgto.plusMonths(1);
+        }
+
+        try {
+            newDtPagto = newDtPagto.withDayOfMonth(diaPagto);
+        } catch (DateTimeException e) {
+            newDtPagto = dtPgto.plusMonths(1);
         }
 
         while (isDiaNaoUtil(newDtPagto)) {
             newDtPagto = newDtPagto.plusDays(1);
         }
 
+
+        if(newDtPagto.getMonth() != dtPgto.plusMonths(1).getMonth()) { //verificar se a nova data de pagamento, nao acabou ultrapassando o mes de pagamento e corrigir
+            newDtPagto = newDtPagto.minusDays(1);
+
+            while (isDiaNaoUtil(newDtPagto)) {
+                newDtPagto = newDtPagto.minusDays(1);
+            }
+        }
+
         return newDtPagto;
     }
 
-    public String isConsolidado (LocalDate dtCompetencia, LocalDate dtPagtoAnterior, Integer qtdParcelas){
+    public String isConsolidado (LocalDate dtCompetencia, LocalDate dtPagtoAnterior, Integer qtdParcelas, LocalDate dtInicial){
         LocalDate ultimoDiaMes = dtCompetencia.withDayOfMonth(dtCompetencia.lengthOfMonth());
-        if(dtCompetencia.getDayOfMonth() == dtPagtoAnterior.getDayOfMonth()) {
+        LocalDate ultimoDiaMesPagtoAnterior = dtPagtoAnterior.withDayOfMonth(dtPagtoAnterior.lengthOfMonth());
+
+        if(dtCompetencia.getDayOfMonth() == dtPagtoAnterior.getDayOfMonth() && dtCompetencia.getMonth() != dtInicial.getMonth()) {
             parcelaAtual++;
             return parcelaAtual + "/" + qtdParcelas;
-        } else if (dtCompetencia != ultimoDiaMes) {
+        } else if(dtCompetencia == ultimoDiaMes && dtPagtoAnterior == ultimoDiaMesPagtoAnterior) { //condicao p/ casos onde o ultimo dia do mes coincide com um dia de pagamento
+            parcelaAtual++;
+            return parcelaAtual + "/" + qtdParcelas;
+        }
+        else if (dtCompetencia != ultimoDiaMes) {
             parcelaAtual++;
             return parcelaAtual + "/" + qtdParcelas;
         } else {

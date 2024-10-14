@@ -11,12 +11,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/")
+@CrossOrigin(origins = "*")
 public class EmprestimoController {
 
     @Autowired
     private EmprestimoService emprestimoService;
 
     @PostMapping("/calcular")
+    //@RequestMapping(value = "/calcular", method = RequestMethod.POST)
     public ResponseEntity<List<EmprestimoResponse>> calcular(@RequestBody EmprestimoRequest emprestimo) {
         List<EmprestimoResponse> listagem= emprestimoService.calcularEmprestimo(emprestimo);
         return ResponseEntity.ok().body(listagem);

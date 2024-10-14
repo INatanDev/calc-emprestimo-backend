@@ -14,10 +14,10 @@ class DesafioApplicationTests {
 	@Test
 	void contextLoads() {
 		EmprestimoService emprestimoService = new EmprestimoService();
-		LocalDate dtCompetencia = LocalDate.of(2024, 01, 31);
-		LocalDate dtInicial = LocalDate.of(2024, 01, 01);
+		LocalDate dtInicial = LocalDate.of(2023, 12, 01);
+		LocalDate dtCompetencia = LocalDate.of(2024, 02, 29);
+		LocalDate dtUltimoPagto = LocalDate.of(2024, 02, 29);
 		LocalDate dtFinal = LocalDate.of(2024, 01, 31);
-		LocalDate dtPagto = LocalDate.of(2024, 02, 15);
 		LocalDate dtAnterior = LocalDate.of(2024, 01, 01);
 		LocalDate dtProxPagto = LocalDate.of(2024, 03, 15);
 
@@ -33,8 +33,10 @@ class DesafioApplicationTests {
 		System.out.println(verificaData);
 		System.out.println(dtCompetencia.isBefore(dtProxPagto));*/
 
-		LocalDate verificaData = emprestimoService.calcularCompetencia(dtCompetencia, dtPagto, dtInicial, dtFinal,15, 120);
-		System.out.println(verificaData);
+		//LocalDate verificaData = emprestimoService.calcularCompetencia(dtCompetencia, dtPagto, dtInicial, dtFinal,31, 120);
+		//String verifica = emprestimoService.isConsolidado(dtCompetencia, dtUltimoPagto, 12, dtInicial);
+		LocalDate verifica = emprestimoService.calcularDataPagamento(dtUltimoPagto, 31);
+		System.out.println(verifica);
 
 	}
 
