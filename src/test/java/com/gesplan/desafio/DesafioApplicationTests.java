@@ -15,8 +15,9 @@ class DesafioApplicationTests {
 	void contextLoads() {
 		EmprestimoService emprestimoService = new EmprestimoService();
 		LocalDate dtInicial = LocalDate.of(2023, 12, 01);
-		LocalDate dtCompetencia = LocalDate.of(2024, 02, 29);
-		LocalDate dtUltimoPagto = LocalDate.of(2024, 02, 29);
+		LocalDate dtCompetencia = LocalDate.of(2024, 04, 30);
+		LocalDate dtUltimoPagto = LocalDate.of(2024, 03, 28);
+		LocalDate dtPrimeirPagto = LocalDate.of(2024, 01, 31);
 		LocalDate dtFinal = LocalDate.of(2024, 01, 31);
 		LocalDate dtAnterior = LocalDate.of(2024, 01, 01);
 		LocalDate dtProxPagto = LocalDate.of(2024, 03, 15);
@@ -34,9 +35,10 @@ class DesafioApplicationTests {
 		System.out.println(dtCompetencia.isBefore(dtProxPagto));*/
 
 		//LocalDate verificaData = emprestimoService.calcularCompetencia(dtCompetencia, dtPagto, dtInicial, dtFinal,31, 120);
-		//String verifica = emprestimoService.isConsolidado(dtCompetencia, dtUltimoPagto, 12, dtInicial);
-		LocalDate verifica = emprestimoService.calcularDataPagamento(dtUltimoPagto, 31);
-		System.out.println(verifica);
+		String verificaConsolidado = emprestimoService.isConsolidado(dtCompetencia, dtUltimoPagto, 12, dtInicial, dtPrimeirPagto);
+		//LocalDate verificaDtPagto = emprestimoService.calcularDataPagamento(dtUltimoPagto, dtPrimeirPagto, 31);
+		System.out.println(verificaConsolidado);
+		//System.out.println(verificaDtPagto);
 
 	}
 

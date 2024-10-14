@@ -15,7 +15,7 @@ import de.jollyday.HolidayManager;
 
 @Service
 public class EmprestimoService {
-    public static int parcelaAtual = 0;
+    public static int parcelaAtual = 1;
     private final HolidayManager manager = HolidayManager.getInstance(HolidayCalendar.BRAZIL);
 
     public List<EmprestimoResponse> calcularEmprestimo(EmprestimoRequest dadosCalculo) {
@@ -52,13 +52,13 @@ public class EmprestimoService {
                 baseDias
         ));
         int i = 0;
-        while(/*i <= 150 || */parcelaAtual != qtdParcelas) {
+        while(i <= 245/* || parcelaAtual != qtdParcelas*/) {
 
             LocalDate dataAnterior = dataCompetencia;
             Double vlrAcumuladoAnterior = valorAcumulado;
 
-            dataCompetencia = calcularCompetencia(dataCompetencia, dataPagamento, dadosCalculo.getDataInicial(), dadosCalculo.getDataFinal(), diaPagto, qtdParcelas);
-            consolidado = isConsolidado(dataCompetencia, dataPagamento, qtdParcelas, dadosCalculo.getDataInicial());
+            dataCompetencia = calcularCompetencia(dataCompetencia, dataPagamento, dadosCalculo.getDataInicial(), dadosCalculo.getDataFinal(), dadosCalculo.getDataPrimeiroPagamento(), diaPagto, qtdParcelas);
+            consolidado = isConsolidado(dataCompetencia, dataPagamento, qtdParcelas, dadosCalculo.getDataInicial(), dadosCalculo.getDataPrimeiroPagamento());
             if(consolidado != null) {
                 dataPagamento = dataCompetencia;
             }
@@ -84,11 +84,11 @@ public class EmprestimoService {
         return emprestimos;
     }
 
-    public LocalDate calcularCompetencia(LocalDate dtCompetencia, LocalDate dtPagto, LocalDate dtInicial, LocalDate dtFinal, Integer diaPagto, Integer qtdParcelas) {
+    public LocalDate calcularCompetencia(LocalDate dtCompetencia, LocalDate dtPagto, LocalDate dtInicial, LocalDate dtFinal, LocalDate dtPrimeiroPgto, Integer diaPagto, Integer qtdParcelas) {
 
         boolean mesmoMesInicial = dtCompetencia.getMonth() == dtInicial.getMonth();
         LocalDate ultimoDiaMes = dtCompetencia.withDayOfMonth(dtCompetencia.lengthOfMonth()); //verifica se o dtCompetencia ja nao é o ultimo dia do mes
-        dtPagto = calcularDataPagamento(dtPagto, diaPagto);
+        dtPagto = calcularDataPagamento(dtPagto, dtPrimeiroPgto, diaPagto);
 
         if(mesmoMesInicial && dtCompetencia.equals(ultimoDiaMes)) {
             return dtPagto;
@@ -143,7 +143,7 @@ public class EmprestimoService {
         return qtdParcelas;
     }
 
-    public LocalDate calcularDataPagamento(LocalDate dtPgto, Integer diaPagto) {
+    public LocalDate calcularDataPagamento(LocalDate dtPgto, LocalDate dtPrimeiroPagto, Integer diaPagto) {
         LocalDate newDtPagto;
 
         if(parcelaAtual == 0) {
@@ -154,18 +154,23 @@ public class EmprestimoService {
             newDtPagto = dtPgto.plusMonths(1);
         }
 
+        //verificacao exclusiva quando datas de pagamento sao no ultimo dia do mes
         try {
             newDtPagto = newDtPagto.withDayOfMonth(diaPagto);
         } catch (DateTimeException e) {
-            newDtPagto = dtPgto.plusMonths(1);
+            Integer ultimoDiaMes = newDtPagto.lengthOfMonth();
+            while(ultimoDiaMes != newDtPagto.getDayOfMonth()) {
+                newDtPagto = newDtPagto.plusDays(1);
+            }
         }
 
+        //verifica se é um dia útil
         while (isDiaNaoUtil(newDtPagto)) {
             newDtPagto = newDtPagto.plusDays(1);
         }
 
-
-        if(newDtPagto.getMonth() != dtPgto.plusMonths(1).getMonth()) { //verificar se a nova data de pagamento, nao acabou ultrapassando o mes de pagamento e corrigir
+        //verificar se a nova data de pagamento, nao acabou ultrapassando o mes de pagamento e corrigir
+        if(newDtPagto.getMonth() != dtPgto.plusMonths(1).getMonth()) {
             newDtPagto = newDtPagto.minusDays(1);
 
             while (isDiaNaoUtil(newDtPagto)) {
@@ -176,16 +181,33 @@ public class EmprestimoService {
         return newDtPagto;
     }
 
-    public String isConsolidado (LocalDate dtCompetencia, LocalDate dtPagtoAnterior, Integer qtdParcelas, LocalDate dtInicial){
+    public String isConsolidado (LocalDate dtCompetencia, LocalDate dtPagtoAnterior, Integer qtdParcelas, LocalDate dtInicial, LocalDate dtPrimeiroPagto){
         LocalDate ultimoDiaMes = dtCompetencia.withDayOfMonth(dtCompetencia.lengthOfMonth());
         LocalDate ultimoDiaMesPagtoAnterior = dtPagtoAnterior.withDayOfMonth(dtPagtoAnterior.lengthOfMonth());
 
-        if(dtCompetencia.getDayOfMonth() == dtPagtoAnterior.getDayOfMonth() && dtCompetencia.getMonth() != dtInicial.getMonth()) {
+        // Verifica se a data de competencia é anterior ao primeiro pagamento
+        if(dtCompetencia.isBefore(dtPrimeiroPagto)) {
+            return null;
+        }
+        // Verifica se o dia da competência coincide com o dia do último pagamento e não é o mesmo mês que dtInicial
+        else if(dtCompetencia.getDayOfMonth() == dtPagtoAnterior.getDayOfMonth() && dtCompetencia.getMonth() != dtInicial.getMonth()) {
             parcelaAtual++;
             return parcelaAtual + "/" + qtdParcelas;
-        } else if(dtCompetencia == ultimoDiaMes && dtPagtoAnterior == ultimoDiaMesPagtoAnterior) { //condicao p/ casos onde o ultimo dia do mes coincide com um dia de pagamento
-            parcelaAtual++;
-            return parcelaAtual + "/" + qtdParcelas;
+        }
+        //Verifica casos onde o ultimo dia do mes coincide com um dia de pagamento
+        else if(dtCompetencia.equals(ultimoDiaMes)) {
+            //Verifica se a data do ultimo pagamento é igual ao ultimo dia do seu mes
+            if(dtPagtoAnterior == ultimoDiaMesPagtoAnterior) {
+                parcelaAtual++;
+                return parcelaAtual + "/" + qtdParcelas;
+            }
+            //garante que sao meses diferentes para evitar pagamentos no mesmo mes
+            else if (dtCompetencia.getMonth() != dtPagtoAnterior.getMonth()) {
+                parcelaAtual++;
+                return parcelaAtual + "/" + qtdParcelas;
+            } else {
+                return null;
+            }
         }
         else if (dtCompetencia != ultimoDiaMes) {
             parcelaAtual++;
