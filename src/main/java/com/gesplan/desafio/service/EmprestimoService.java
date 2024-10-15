@@ -2,6 +2,7 @@ package com.gesplan.desafio.service;
 
 import com.gesplan.desafio.entities.EmprestimoRequest;
 import com.gesplan.desafio.entities.EmprestimoResponse;
+import com.gesplan.desafio.exceptions.*;
 import org.springframework.stereotype.Service;
 
 import java.time.DateTimeException;
@@ -15,11 +16,14 @@ import de.jollyday.HolidayManager;
 
 @Service
 public class EmprestimoService {
-    public static int parcelaAtual = 1;
+    public static int parcelaAtual = 0;
     private final HolidayManager manager = HolidayManager.getInstance(HolidayCalendar.BRAZIL);
 
     public List<EmprestimoResponse> calcularEmprestimo(EmprestimoRequest dadosCalculo) {
         parcelaAtual = 0;
+
+        validaDados(dadosCalculo);
+
         List<EmprestimoResponse> emprestimos = new ArrayList<>();
 
         //inicializacao variaveis
@@ -37,6 +41,7 @@ public class EmprestimoService {
 
         LocalDate dataPagamento = dadosCalculo.getDataPrimeiroPagamento();
         Integer diaPagto = dadosCalculo.getDataPrimeiroPagamento().getDayOfMonth();
+        Double taxaJuros = dadosCalculo.getTaxaJuros() / 100;
 
         //cria primeiro registro
         emprestimos.add(new EmprestimoResponse(dataCompetencia,
@@ -51,9 +56,7 @@ public class EmprestimoService {
                 qtdParcelas,
                 baseDias
         ));
-        int i = 0;
-        while(i <= 245/* || parcelaAtual != qtdParcelas*/) {
-
+        while(parcelaAtual != qtdParcelas) {
             LocalDate dataAnterior = dataCompetencia;
             Double vlrAcumuladoAnterior = valorAcumulado;
 
@@ -63,8 +66,11 @@ public class EmprestimoService {
                 dataPagamento = dataCompetencia;
             }
             valorAmortizacao = calcularAmortizacao(consolidado, dadosCalculo.getValorEmprestimo(), qtdParcelas);
-            valorProvisao = calcularProvisao(dataCompetencia, dataAnterior, saldo, valorAcumulado, dadosCalculo.getTaxaJuros());
+            valorProvisao = calcularProvisao(dataCompetencia, dataAnterior, saldo, valorAcumulado, taxaJuros);
             saldo = saldo - valorAmortizacao;
+            if(saldo < 0) {
+                saldo = 0.0;
+            }
             valorPago = calcularValorPagamento(consolidado, vlrAcumuladoAnterior, valorProvisao);
             valorAcumulado = calcularAcumulado(consolidado, valorProvisao, vlrAcumuladoAnterior, valorPago);
 
@@ -79,7 +85,6 @@ public class EmprestimoService {
                     Double.parseDouble((String.format("%.2f", valorPago)).replace(",", ".")),
                     qtdParcelas,
                     baseDias));
-            i++;
         }
         return emprestimos;
     }
@@ -116,14 +121,15 @@ public class EmprestimoService {
 
         Double formulaProvisao = ((Math.pow(txJuros + 1, dias)) - 1) * (saldo + acumulado);
 
-        return formulaProvisao;
+        return (formulaProvisao >= 0) ? formulaProvisao : 0.00;
     }
 
     private Double calcularAcumulado(String consolidado, Double vlrProvisao, Double vlrAcumuladoAnterior, Double vlrPago) {
         if(consolidado != null) {
             return 0.00;
         } else {
-            return vlrAcumuladoAnterior + vlrProvisao - vlrPago;
+            Double totalAcumulado = vlrAcumuladoAnterior + vlrProvisao - vlrPago;
+            return (totalAcumulado >= 0) ? totalAcumulado : 0.00;
         }
     }
 
@@ -222,5 +228,23 @@ public class EmprestimoService {
         boolean isFinalDeSemana = data.getDayOfWeek() == DayOfWeek.SATURDAY || data.getDayOfWeek() == DayOfWeek.SUNDAY;
 
         return isFeriado || isFinalDeSemana;
+    }
+
+    private void validaDados(EmprestimoRequest emprestimoRequest) {
+        if(isDiaNaoUtil(emprestimoRequest.getDataPrimeiroPagamento())) {
+            throw new DataNaoUtilException("Escolher uma data de pagamento em dia útil!");
+        }
+        if(emprestimoRequest.getDataPrimeiroPagamento().isAfter(emprestimoRequest.getDataFinal()) || emprestimoRequest.getDataPrimeiroPagamento().isBefore(emprestimoRequest.getDataInicial())) {
+            throw new DataInvalidaException("A data do primeiro pagamento deve ser maior que a data inicial ou menor que a data final.");
+        }
+        if(emprestimoRequest.getDataPrimeiroPagamento().getMonth().equals(emprestimoRequest.getDataInicial().getMonth())) {
+            throw new DataPagamentoException("O mês do primeiro pagamento deve ser posterior ao mês da data inicial.");
+        }
+        if(emprestimoRequest.getTaxaJuros() <= 0) {
+            throw new TaxaJurosException("Taxa de Juros deve ser maior que zero!");
+        }
+        if(emprestimoRequest.getValorEmprestimo() <= 0) {
+            throw new ValorEmprestimoException("Valor de Empréstimo deve ser maior que zero!");
+        }
     }
 }
